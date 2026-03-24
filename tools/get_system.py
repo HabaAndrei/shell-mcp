@@ -1,4 +1,4 @@
-from main import mcp
+from mcp_engine import mcp
 from ShellWrapper import sw
 
 @mcp.tool()
