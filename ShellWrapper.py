@@ -2,6 +2,7 @@ import asyncio
 import threading
 import os
 import platform
+from logger import log_info, log_error, log_debug
 
 
 # singleton thread safe
@@ -22,6 +23,7 @@ class ShellWrapper:
 
     async def run_command(self, command: str, cwd:str, timeout=120) -> str:
         proc = None
+        log_info(f"Running command: {command} | cwd: {cwd} | timeout: {timeout}s")
         try:
             proc = await asyncio.create_subprocess_shell(
                 command,
@@ -30,19 +32,23 @@ class ShellWrapper:
                 cwd=cwd
             )
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            log_debug(f"Command finished: {command} | exit code: {proc.returncode}")
             return f"stdout: {stdout.decode()}\nstderr: {stderr.decode()}"
         except asyncio.TimeoutError:
             if proc and proc.returncode is None:
                 proc.kill()
                 await proc.wait()
+            log_error(f"Command timed out after {timeout}s: {command}")
             return f"Command timed out after {timeout}s"
         except Exception as e:
             if proc and proc.returncode is None:
                 proc.kill()
                 await proc.wait()
+            log_error(f"Command failed: {command} | error: {e}")
             return str(e)
 
     async def run_command_in_background(self, command:str, cwd:str) -> int | str:
+        log_info(f"Starting background command: {command} | cwd: {cwd}")
         try:
             env = {**os.environ, "PYTHONUNBUFFERED": "1"}
             proc = await asyncio.create_subprocess_shell(
@@ -60,31 +66,41 @@ class ShellWrapper:
 
             asyncio.create_task(_reader())
             self._processes[proc.pid] = proc
+            log_info(f"Background process started: PID {proc.pid} | command: {command}")
             return proc.pid
         except Exception as e:
+            log_error(f"Failed to start background command: {command} | error: {e}")
             return str(e)
 
     def read_output(self, pid:int, last=300) -> str:
+        log_debug(f"Reading output: PID {pid} | last: {last}")
         try:
             proc = self._processes.get(pid)
             if not proc:
+                log_error(f"No process with PID {pid}")
                 return f"No process with PID {pid}"
             lines = proc._output_lines[:last]
             del proc._output_lines[:last]
+            log_debug(f"Read {len(lines)} lines from PID {pid}")
             return "".join(lines)
         except Exception as e:
+            log_error(f"Failed to read output for PID {pid} | error: {e}")
             return str(e)
 
     async def kill_process(self, pid: int) -> str:
+        log_info(f"Killing process: PID {pid}")
         try:
             proc = self._processes.get(pid)
             if not proc:
+                log_error(f"No process with PID {pid}")
                 return f"No process with PID {pid}"
             proc.kill()
             await proc.wait()
             del self._processes[pid]
+            log_info(f"Killed process {pid}")
             return f"Killed process {pid}"
         except Exception as e:
+            log_error(f"Failed to kill process {pid} | error: {e}")
             return str(e)
 
     async def execut_command(
