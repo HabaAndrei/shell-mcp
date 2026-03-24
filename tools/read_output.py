@@ -3,18 +3,17 @@ from ShellWrapper import sw
 
 
 @mcp.tool()
-async def read_output(pid:int, last:int=300):
-    """Read new output lines from a running background process.
+def read_output(pid:int, last:int=300):
+    """Read information about a running background process.
 
-    Lines are consumed: each call returns only lines that have not been read before.
-    Call this repeatedly to stream incremental output from long-running commands
-    (e.g. a dev server, a build, or a test suite).
+    Uses OS-level tools (lsof on Unix, tasklist on Windows) to inspect the process
+    and return its current state, including open file descriptors and resource usage.
 
     Args:
         pid: The process ID returned by `execut_command` when the background process was started.
-        last: Maximum number of buffered lines to return in this call (default 300).
+        last: Maximum number of lines to return from the output (default 300).
 
     Returns:
-        A string containing the new output lines, or an error if the PID is unknown.
+        A string containing process information, or an error if the PID is not found.
     """
     return sw.read_output(pid=pid, last=last)

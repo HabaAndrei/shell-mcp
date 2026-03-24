@@ -1,10 +1,9 @@
-
 from mcp_engine import mcp
 from ShellWrapper import sw
 
 
 @mcp.tool()
-async def kill_process(pid: int):
+def kill_process(pid: int):
     """Terminate a background process that was previously started with `execut_command(run_in_background=True)`.
 
     Args:
@@ -13,4 +12,4 @@ async def kill_process(pid: int):
     Returns:
         A confirmation message that the process was killed, or an error if the PID is unknown.
     """
-    return await sw.kill_process(pid=pid)
+    return sw.kill_process(pid=pid)
