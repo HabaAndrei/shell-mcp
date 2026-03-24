@@ -92,7 +92,7 @@ class ShellWrapper:
             command:str,
             cwd:str,
             run_in_background:bool=False,
-            timeout:int|None=None,
+            timeout:int|None=120,
         ):
 
         if run_in_background:
@@ -108,3 +108,4 @@ class ShellWrapper:
         return platform.system()
 
 
+sw = ShellWrapper()
