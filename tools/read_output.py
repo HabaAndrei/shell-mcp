@@ -1,5 +1,5 @@
 from mcp_engine import mcp
-from ShellWrapper import sw
+from shell_wrapper import sw
 
 
 @mcp.tool()

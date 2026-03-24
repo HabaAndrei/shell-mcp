@@ -16,6 +16,33 @@ These are problems every coding agent builder will face. The tool names and func
 
 **Think of this project as a reference implementation.** A working example of how to structure shell tools for a coding agent, how to handle the tricky parts (background processes, timeouts, graceful termination), and how to expose them over MCP so any client can use them. It's not a framework; it's a blueprint you can learn from and adapt.
 
+## How It Was Built
+
+### Stack
+
+| Layer | Technology | Role |
+|---|---|---|
+| **MCP Framework** | [FastMCP](https://github.com/jlowin/fastmcp) (`mcp[cli]`) | Provides the MCP server skeleton, tool registration via `@mcp.tool()` decorators, and the `stdio` transport. This is the core that makes the tools discoverable by any MCP client. |
+| **Python** | 3.13+ | The entire server is pure Python with no external runtime dependencies beyond the standard library and FastMCP. |
+| **asyncio** | stdlib | Used for non-blocking foreground command execution (`asyncio.create_subprocess_shell`) and timeout handling (`asyncio.wait_for`). |
+| **subprocess** | stdlib | Powers background process spawning (`subprocess.Popen`) and process inspection (`lsof`, `tasklist`). |
+| **os / signal** | stdlib | Handles cross-platform process lifecycle: existence checks (`os.kill(pid, 0)`), graceful termination (`SIGTERM`), and force kill (`SIGKILL`). |
+| **platform** | stdlib | OS detection so the agent knows whether it's talking to Linux, macOS, or Windows. |
+| **logging** | stdlib | All logs go to `stderr` (never `stdout`, since MCP uses `stdout` for JSON-RPC communication). |
+| **uv** | Package manager | Manages dependencies and runs the server (`uv run main.py`). |
+
+### Architecture Decisions
+
+1. **One tool per file** (`tools/` directory): each MCP tool lives in its own module with its own docstring. The `@mcp.tool()` decorator auto-registers it when imported. This keeps things clean and makes it easy to add or remove tools.
+
+2. **ShellWrapper singleton**: all shell logic lives in a single class (`ShellWrapper`) instantiated once as `sw`. The tool files are thin wrappers that just call `sw.method()`. This separates the MCP layer from the actual shell logic, so you can test or reuse `ShellWrapper` independently.
+
+3. **Foreground with timeout vs. background with PID**: instead of one generic "run" function, the server explicitly separates these two modes. Foreground commands block and return output. Background commands return a PID immediately, and the agent can poll or kill later. This distinction is critical for coding agents that need to start servers, run builds, or do long tasks.
+
+4. **Graceful termination with fallback**: `kill_process` first sends `SIGTERM`, waits up to 1 second, then escalates to `SIGKILL`. This prevents zombie processes while still giving well-behaved processes a chance to clean up.
+
+5. **Logging to stderr only**: MCP communicates over `stdout` using JSON-RPC. Any stray `print()` would corrupt the protocol. All logging is routed to `stderr` via Python's `logging` module.
+
 ## Tools
 
 | Tool | Description |
@@ -31,7 +58,7 @@ These are problems every coding agent builder will face. The tool names and func
 shell_mcp/
 ├── main.py              # Entry point, starts the MCP server on stdio
 ├── mcp_engine.py        # FastMCP server instance + instructions
-├── ShellWrapper.py      # Core shell logic (run, background, read, kill)
+├── shell_wrapper.py      # Core shell logic (run, background, read, kill)
 ├── logger.py            # Logging config (writes to stderr, not stdout)
 ├── tools/               # One file per MCP tool
 │   ├── __init__.py
