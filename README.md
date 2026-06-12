@@ -52,6 +52,33 @@ These are problems every coding agent builder will face. The tool names and func
 | `read_output` | Inspects a running background process and returns its current state and open resources. |
 | `kill_process` | Gracefully terminates a background process (SIGTERM then SIGKILL fallback). |
 
+How the two execution modes play out for an agent starting a dev server,
+checking on it, and shutting it down:
+
+```mermaid
+sequenceDiagram
+    actor Agent as AI Agent (MCP client)
+    participant MCP as Shell MCP Server
+    participant OS as Host Shell
+
+    Agent->>MCP: execut_command("npm test")  [foreground]
+    MCP->>OS: asyncio.create_subprocess_shell + timeout
+    OS-->>MCP: exit code + output
+    MCP-->>Agent: full output (blocking call done)
+
+    Agent->>MCP: execut_command("npm run dev", background=true)
+    MCP->>OS: subprocess.Popen
+    MCP-->>Agent: PID 12345 (returns immediately)
+    Note over Agent: keeps working while the server runs
+
+    Agent->>MCP: read_output(12345)
+    MCP-->>Agent: process state + open resources
+
+    Agent->>MCP: kill_process(12345)
+    MCP->>OS: SIGTERM, wait 1s, SIGKILL if needed
+    MCP-->>Agent: terminated cleanly
+```
+
 ## Project Structure
 
 ```
@@ -66,9 +93,11 @@ shell_mcp/
 │   ├── get_system.py
 │   ├── read_output.py
 │   └── kill_process.py
-├── pyproject.toml
-└── use.py               # Example: LangChain agent using the MCP server
+└── pyproject.toml
 ```
+
+Complete client examples (LangChain with and without Postgres memory,
+Claude Desktop) are in the [Integration Guide](#integration-guide) below.
 
 ## Prerequisites
 
@@ -79,8 +108,8 @@ shell_mcp/
 
 ```bash
 # Clone the repository
-git clone <your-repo-url> shell_mcp
-cd shell_mcp
+git clone https://github.com/HabaAndrei/shell-mcp.git
+cd shell-mcp
 
 # Install dependencies with uv
 uv sync
@@ -256,4 +285,4 @@ Once integrated, you can ask your agent things like:
 
 ## License
 
-MIT
+[MIT](LICENSE)
