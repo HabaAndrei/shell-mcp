@@ -1,7 +1,7 @@
 [project]
 name = "shell-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Reference MCP server giving coding agents shell access done right: foreground commands with timeouts, background processes with PIDs, live output inspection and graceful termination"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
